@@ -5,6 +5,7 @@
     mc-rtc-nix.url = "github:mc-rtc/nixpkgs";
     flake-parts.follows = "mc-rtc-nix/flake-parts";
     systems.follows = "mc-rtc-nix/systems";
+    mc-rtc.url = "github:jrl-umi3218/mc_rtc/pull/526/head";
   };
 
   outputs =
@@ -18,6 +19,11 @@
           {
             flakoboros = {
               extraPackages = [ "ninja" ];
+
+              overrideAttrs.mc-rtc =
+              {
+                src = inputs.mc-rtc;
+              };
 
               packages = {
                 mc-random-joints-example-controller =
