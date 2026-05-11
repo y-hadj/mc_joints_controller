@@ -18,5 +18,6 @@ struct RandomJointsExample_Initial : mc_control::fsm::State {
   unsigned pauseIter_ = 100;
   unsigned iter_ = 0;
   std::vector<Eigen::VectorXd> csvJoints_;
+  std::vector<std::string> in_lines;
   bool fromCSV = true;
 };
