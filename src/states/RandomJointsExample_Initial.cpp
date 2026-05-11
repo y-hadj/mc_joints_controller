@@ -36,6 +36,17 @@ void RandomJointsExample_Initial::start(mc_control::fsm::Controller& ctl) {
       mc_rtc::gui::IntegerInput(
           "Pause Iterations", [this]() { return pauseIter_; },
           [this](int v) { pauseIter_ = v; }));
+    
+    if(fromCSV){ // parse data at startup only
+      mc_rtc::log::info("Choosing Mode: Loading csv joint data");
+
+      std::ifstream csv("data/Cmap_joints.csv"); //supposed format: all qi + flag to indicate last qi of the interp
+      std::string header; std::getline(csv, header);
+      std::string line;
+      while (std::getline(csv, line)) in_lines.push_back(line);
+    }else{ 
+        mc_rtc::log::info("Choosing Mode: Loading randon joint data");
+    }
 }
 
 bool RandomJointsExample_Initial::run(mc_control::fsm::Controller& ctl) {
@@ -45,7 +56,6 @@ bool RandomJointsExample_Initial::run(mc_control::fsm::Controller& ctl) {
     const auto& rjo = robot.refJointOrder();
 
     if (!fromCSV){
-      // mc_rtc::log::info("Choosing Mode: Loading random joint data");
       randomJoints_ = Eigen::VectorXd(rjo.size());
       
       // Modern C++ random engine
@@ -72,24 +82,13 @@ bool RandomJointsExample_Initial::run(mc_control::fsm::Controller& ctl) {
         postureTask.posture(posture);
       }
     }else{
-      // mc_rtc::log::info("Choosing Mode: Loading csv joint data");
-
-      // pase data (TODO. find better place for this so that it won't be parsed @ every run iteration)
-      std::ifstream csv("data/Cmap_joints.csv"); //supposed format: all qi + flag to indicate last qi of the interp
-      std::string header; std::getline(csv, header);
-      std::vector<std::string> out_lines, in_lines;
-      std::string line;
-      while (std::getline(csv, line)) in_lines.push_back(line);
-
-      // for each IK solution
-      for (size_t j = 0; j < in_lines.size(); ++j)  
-      {
-        auto tokens = split(in_lines[j], ',');
+        csvJoints_[iter_] = Eigen::VectorXd(rjo.size()); //TODO. verify that we're using iter_ not ++iter_
+        auto tokens = split(in_lines[iter_], ',');  
         int kf = std::stod(tokens[0]);
-        
+
         // for each qi of the IK sol
-        for (size_t i = 0; i < randomJoints_.size(); ++i) { 
-          csvJoints_[j][i] = std::stod(tokens[i+1]);
+        for (size_t i = 0; i < rjo.size(); ++i) { 
+          csvJoints_[iter_][i] = std::stod(tokens[i+1]);
 
           auto& postureTask = *ctl.getPostureTask(robot.name());
           static auto posture = postureTask.posture();
@@ -97,13 +96,12 @@ bool RandomJointsExample_Initial::run(mc_control::fsm::Controller& ctl) {
           auto jointIndexInMbc = robot.jointIndexInMBC(i);
           
           if (ctl.datastore().get<bool>("RandomJointsExample::DisableQP")) {
-            robot.mbc().q[jointIndexInMbc][0] = csvJoints_[j][i];
+            robot.mbc().q[jointIndexInMbc][0] = csvJoints_[iter_][i];
           }
 
-          posture[jointIndexInMbc][0] = csvJoints_[j][i];
+          posture[jointIndexInMbc][0] = csvJoints_[iter_][i];
           postureTask.posture(posture);
         }
-      }
     }
   }
   output("OK");
